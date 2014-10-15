@@ -38,7 +38,8 @@ B. Upload This Plugin into wordpress
 
 == Screenshots ==
 
-https://lh5.googleusercontent.com/-tYLF37B_Sow/VBVFnwTAksI/AAAAAAAAA3Q/LQDSA6VsaKk/w793-h899-no/mcs_screenshots.png
+1. Main Page Where you can change selected category to subdomain or change the theme
+2. All Setting on subdomain
 
 == Changelog ==
 
