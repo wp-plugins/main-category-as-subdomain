@@ -39,7 +39,7 @@ B. Upload This Plugin into wordpress
 == Screenshots ==
 
 1. Main Page Where you can change selected category to subdomain or change the theme
-2. All Setting on subdomain
+2. All Settings on subdomain
 
 == Changelog ==
 
