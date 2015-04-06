@@ -9,7 +9,7 @@
  */
 class mcs_admin {
 	
-	
+	private $id_subdomain = 0;	
 	/*
 	 * For easier overriding we declared the keys
 	 * here as well as our tabs array which is populated
@@ -26,7 +26,11 @@ class mcs_admin {
 	 * so don't miss-use this, only actions and filters,
 	 * current ones speak for themselves.
 	 */
-	public function __construct() {		
+	 
+	public function __construct() {	
+
+
+	
 		add_action( 'init', array( &$this, 'load_settings' ) );
 		add_action( 'admin_init', array( &$this, 'register_selected_categories' ) );
 		add_action( 'admin_init', array( &$this, 'register_advanced_settings' ) );		
@@ -34,8 +38,8 @@ class mcs_admin {
 		
 		add_action( 'admin_notices', array( &$this, 'error_admin_notice') );
 		//echo plugin_basename(__FILE__);
-		add_filter( 'plugin_action_links_categories-subdomains/categories-subdomains.php',  array( &$this, 'my_plugin_action_links') );
-
+		add_filter( 'plugin_action_links_main-category-as-subdomain/main-category-as-subdomain.php',  array( &$this, 'my_plugin_action_links') );
+	
 	}
 	
 	/*
@@ -46,10 +50,12 @@ class mcs_admin {
 	 */
 	function load_settings() {
 		$this->selected_categories 	= (array) get_option( $this->selected_categories_key );				
-		$this->advanced_settings 	= (array) get_option( $this->advanced_settings_key );
+		$this->advanced_settings 	= (array) get_option( $this->advanced_settings_key );	
 		if( empty($this->theme_settings)) $this->theme_settings = array();
 			
-
+		if( isset( $_GET['subdomain'] ) && isset( $this->selected_categories[$_GET['subdomain']] ) ) {
+			$this->id_subdomain = $_GET['subdomain'];
+		}
 	}
 	
 	
@@ -58,6 +64,9 @@ class mcs_admin {
 		if(empty( $permalink_structure )) {
 			echo "<div class=\"error\"><p><span style=\"color:#cc0000\">WARNING!</span> For <strong>Main Category As Subdomain Plugin</strong> To Works Properly. Please Don't Use Default Permalink Settings</p></div>";
 		}
+		if( !$this->advanced_settings['mode']  ) {
+			echo "<div class=\"updated\"><p><span style=\"color:#00FF00\">Notice : </span> <strong>'Main Category As Subdomain' plugin in testing mode </p></div>";
+		}		
 	}
 	
 	public function my_plugin_action_links( $links ) {
@@ -71,17 +80,33 @@ class mcs_admin {
 	 * appends the setting to the tabs array of the object.
 	 */
 	function register_selected_categories() {
-		$this->plugin_settings_tabs[$this->selected_categories_key] = array('title'=>'Main Categories','button'=> 'Change To Subdomain');
+		$this->plugin_settings_tabs[$this->selected_categories_key] = array('title'=>'Main Categories','button'=> 'Change To Subdomain');	
 		
 		register_setting( $this->selected_categories_key, $this->selected_categories_key ,array( &$this, 'sanitize_category_callback'));
 		
 			add_settings_section( 'section_general', 'READ PLEASE!!', array( &$this, 'section_general_desc' ), $this->selected_categories_key );
-			//add_settings_field( 'general_option', 'A General Option', array( &$this, 'field_general_option' ), $this->selected_categories_key, 'section_general' );
-			foreach(get_categories() as $cat ) {
-				if( 0 == $cat->parent) {
-					add_settings_field( $cat->slug, $cat->name , array( &$this, 'field_categories_option' ), $this->selected_categories_key , 'section_general' , array ($cat) );
+			
+			if( $this->id_subdomain ) { 				
+				add_settings_field( 'field_subdomain_theme', 'Change Theme : ', array( &$this, 'field_subdomain_theme' ), $this->selected_categories_key , 'section_general' ,$_GET['subdomain'] );	
+				add_settings_field( 'field_subdomain_fix_css', ' Fix Relative CSS path', array( &$this, 'field_subdomain_fix_css' ), $this->selected_categories_key , 'section_general' ,$_GET['subdomain'] );				
+				add_settings_field( 'field_subdomain_page_shows', 'Blog pages show at most : ', array( &$this, 'field_subdomain_page_shows' ), $this->selected_categories_key , 'section_general' ,$_GET['subdomain'] );
+				add_settings_field( 'field_subdomain_front_page', ' A static page >> Front page: ', array( &$this, 'field_subdomain_front_page' ), $this->selected_categories_key , 'section_general' ,$_GET['subdomain'] );
+				
+				add_settings_field( 'field_subdomain_hidden', '', array( &$this, 'field_subdomain_hidden' ), $this->selected_categories_key , 'section_general' ,$_GET['subdomain'] );	
+
+				
+			} else {
+						
+				//add_settings_field( 'general_option', 'A General Option', array( &$this, 'field_general_option' ), $this->selected_categories_key, 'section_general' );
+				$all_categories = get_categories();
+				usort($all_categories, '_usort_terms_by_ID'); // order by ID
+				foreach($all_categories  as $cat ) {
+					if( 0 == $cat->parent) {
+						add_settings_field( $cat->slug, $cat->term_id .'. ' . $cat->name , array( &$this, 'field_categories_option' ), $this->selected_categories_key , 'section_general' , array ($cat) );
+					}
 				}
-			}		
+
+			}
 		
 	}
 	
@@ -89,7 +114,9 @@ class mcs_admin {
 	
 	
 	
-	function sanitize_category_callback( $input ) {
+	
+	
+	function sanitize_category_callback( $inputs ) {
 	/*
 	INPUT FORMAT :
 	
@@ -111,34 +138,158 @@ class mcs_admin {
 	)
 
 	*/
-		$selected_cats = array();
-		if(isset($input['id'])) {
-			foreach($input['id'] as $id) {
-				$selected_cats[$id] = '';
+	
+	
+		$results = $this->selected_categories;
+		if( isset( $inputs['hidden_id'] )) {
+			$id = $inputs['hidden_id'] ;
+			if( isset($this->selected_categories[$id]) ) {
+				unset($inputs['hidden_id']);
+				if( ! empty($inputs) ) {
+					$arrayresult = array();
+					foreach( $inputs as $key => $value ) {
+						if(!empty($value)) {
+							$arrayresult[$key] = $value;
+						}
+					}
+					$results[$id] = $arrayresult;
+				}else
+					$results[$id] = array();					
 			}
+			
+		} else { 
+		
+			$selected_cats = array();
+			if(isset($inputs['id'])) {
+				foreach($inputs['id'] as $id) {
+					if( isset($this->selected_categories[$id]) )
+						$selected_cats[$id] = $this->selected_categories[$id];
+					else
+						$selected_cats[$id] = array();
+				}
+				
+				$results = $selected_cats;
+			}
+
 		}
 		
+		/*
 		if(isset($input['theme'])) {
 			foreach($input['theme'] as $id=>$theme) {
 				if(isset($selected_cats[$id]))
 					$selected_cats[$id] = $theme;
 			}			
 		}
+		*/
 		
-		return $selected_cats;
+		return $results;
 		
 	}	
 
+
+	/*
+	 * The following methods provide descriptions
+	 * for their respective sections, used as callbacks
+	 * with add_settings_section
+	 */
+	function section_general_desc() { 
+		if( $this->id_subdomain  ) {	
+			$the_cat = get_category( $this->id_subdomain );
+			echo '<h3>' . ucwords( $the_cat->name ) . ' Subdomain Settings</h3><br>';		
+			echo '<a style="font:bold 24px;" href="/wp-admin/options-general.php?page=mcs_page_subdomain" > &lt;&lt; BACK </a>';
+		} else {
+		
+		
+			$subdomain_slug = $this->generateRandomString(7);
+			$link = str_replace( '/www.' , '/' , home_url() );
+			$link = str_replace( 'https://' , 'https://' . $subdomain_slug . '.' , $link);
+			$link = str_replace( 'http://' , 'http://' . $subdomain_slug . '.', $link);
+			
+			$detect_subdomain = $this->Visit($link);
+			$wilcard_message = '';
+			if( $detect_subdomain ) {
+				$wilcard_message = 'You have set up willcard subdomain, good job!';
+			} elseif ( $detect_subdomain === false) {
+				$wilcard_message .= '<span style="color:red"> We detect you haven\'t set wildcard subdomain in your host, Please Follow this <a href="/wp-admin/options-general.php?page=mcs_page_subdomain&tab=mcs_help">instruction</a></span> ';
+			} elseif($detect_subdomain === null) {
+				$wilcard_message .= 'Don\'t Forget to  Set Up Wildcard (*) Subdomains in your Web Server <a href="/wp-admin/options-general.php?page=mcs_page_subdomain&tab=mcs_help"> HELP </a>';
+			}
+			
+			$multicategories_message = '';
+			if( $this->advanced_settings['multicat'] == 'by_id' ) {
+				$multicategories_message = '<strong style="color:red">REMEMBER: </strong>If Your post has two or more categories, we will pick the first category order by an ID.
+					<br>And the first category maybe not subdomain';			
+			} else {
+				$multicategories_message = '<strong style="color:red">REMEMBER: </strong>If Your post has two or more categories, we will find the subdomain
+					<br>And update the post to single category';				
+			}
+
+			
+			echo 	'<ol>				
+					<li>' . $wilcard_message . '</li>								
+					<li>' . $multicategories_message .'</li>
+					</ol><hr>';
+			
+		}
+		
+	}
 	
 	function field_categories_option( $args ) {
 
 		$cat = $args[0];
 		$check = array_key_exists( $cat->term_id, $this->selected_categories );
 		echo '<input value="' . $cat->term_id .'" type="checkbox" name="' . $this->selected_categories_key . '[id][]" ' . checked( true,$check , false ) . ' /> ';
-		if($check)	$this->get_all_theme($args );
-		
-			
+		if($check)	//$this->get_all_theme($args );
+			echo '<a style="margin-left:40px;" href="' . admin_url('options-general.php?page=mcs_page_subdomain&tab=mcs_categories&subdomain=' . $cat->term_id  ) . '">Customize</a>';				
 	}
+	
+	//uppdate
+	function field_subdomain_theme($args ) {
+		$list_theme = '<select name="'. $this->selected_categories_key .'[theme]" >';
+		$list_theme .= '<option value=""></option>';
+		$current_theme = isset( $this->selected_categories[$this->id_subdomain]['theme'] ) ? $this->selected_categories[$this->id_subdomain]['theme'] : '';
+		foreach(wp_get_themes() as $theme_name =>$noneed) {//selected="selected"
+			if(  $current_theme == $theme_name )
+				$list_theme .= '<option selected="selected" value="' . $theme_name . '"' . '' . '> ' . $theme_name . ' </option>';				
+			else			
+				$list_theme .= '<option value="' . $theme_name . '"' . '' . '> ' . $theme_name . ' </option>';
+		}		
+		$list_theme .= '</select>';	
+		echo $list_theme ;
+		echo '<br><br><hr><label><em>
+				To customize theme : <br> Activate the Theme, Customize it, Then Deactivate again by comeback to default theme <br>
+				Your setting on theme should be still accessible and aplied even the theme is inactive
+			  </em></label><br><br>';
+		
+	}
+	
+	//update
+	function  field_subdomain_page_shows($args ) {	
+		$r = isset($this->selected_categories[$this->id_subdomain]['posts_per_page']) ? $this->selected_categories[$this->id_subdomain]['posts_per_page'] : '';		
+		echo '<input name="' . $this->selected_categories_key .'[posts_per_page]" type="number" step="1" min="1" id="posts_per_page" value="'. $r .'" class="small-text" /> posts</td>';	
+	}
+	
+	function field_subdomain_front_page() {
+		$r = isset($this->selected_categories[$this->id_subdomain]['front_page']) ? $this->selected_categories[$this->id_subdomain]['front_page'] : '';	
+		echo wp_dropdown_pages( array( 'name' => $this->selected_categories_key . '[front_page]', 'echo' => 0, 'show_option_none' => __( ' ' ), 'option_none_value' => '0', 'selected' =>  $r  ) );
+	}
+	
+	function field_subdomain_fix_css() {
+		$r = isset($this->selected_categories[$this->id_subdomain]['fix_relative_css']) ? $this->selected_categories[$this->id_subdomain]['fix_relative_css'] : '';
+		echo '<input name="' . $this->selected_categories_key . '[fix_relative_css]" type="checkbox" id="" value="1"' . checked('1', $r ,false ) .' />';	
+		echo '<br><br><hr><label><em>
+				if you found the images or logo in your theme is not appear, check it
+			  </em></label><br><br>';		
+	}
+	
+	//update
+	function field_subdomain_hidden($args ) {
+		$hidden_input = '<input type="hidden" name="' . $this->selected_categories_key .'[hidden_id]' . '" value="' . $args[0]  . '">';	
+		echo $hidden_input ;
+		
+	}		
+	
+	
 	function get_all_theme($args ) {
 		$cat = $args[0];
 		$list_theme = '<select name="'. $this->selected_categories_key .'[theme]' . '['. $cat->term_id . ']" >';
@@ -150,6 +301,18 @@ class mcs_admin {
 		echo $list_theme;
 	}		
 	
+
+
+
+
+
+
+
+
+
+
+
+
 	
 	
 	/*
@@ -162,21 +325,24 @@ class mcs_admin {
 		register_setting( $this->advanced_settings_key, $this->advanced_settings_key ,array( &$this, 'sanitize_subdomain_settings_callback' ) );
 		add_settings_section( 'section_advanced', 'Advanced Plugin Settings', array( &$this, 'section_advanced_desc' ), $this->advanced_settings_key );
 		//add_settings_field( 'advanced_option', 'An Advanced Option', array( &$this, 'field_advanced_option' ), $this->advanced_settings_key, 'section_advanced' );
-		
+
+		add_settings_field( 'field_subdomain_mode', 'Mode : ', array( &$this, 'field_subdomain_mode' ), $this->advanced_settings_key , 'section_advanced' );
+		add_settings_field( 'field_subdomain_multicat', 'Subdomain on Post with Multicategories', array( &$this, 'field_subdomain_multicat' ), $this->advanced_settings_key , 'section_advanced' );
+		add_settings_field( 'field_subcategory_option', 'Child Categories', array( &$this, 'field_subcategory_option' ), $this->advanced_settings_key , 'section_advanced' );
+		add_settings_field( 'field_remove_category_permalink_option', '%category% permalink', array( &$this, 'field_remove_category_permalink_option' ), $this->advanced_settings_key , 'section_advanced' );							
+		add_settings_field( 'field_single_category_url', 'Single Category in Url', array( &$this, 'field_single_category_url' ), $this->advanced_settings_key , 'section_advanced' );		
 		add_settings_field( 'field_subdomain_option', 'Redirect Old Url: ', array( &$this, 'field_subdomain_option' ), $this->advanced_settings_key , 'section_advanced' );
 		add_settings_field( 'field_home_option', 'Change Homepage URL: ', array( &$this, 'field_home_option' ), $this->advanced_settings_key , 'section_advanced' );
 		add_settings_field( 'field_home_desc_option', 'Change Home Desc', array( &$this, 'field_home_desc_option' ), $this->advanced_settings_key , 'section_advanced' );
-		add_settings_field( 'field_subcategory_option', 'Child Categories', array( &$this, 'field_subcategory_option' ), $this->advanced_settings_key , 'section_advanced' );
 		add_settings_field( 'field_using_index_option', 'Using index.php', array( &$this, 'field_using_index_option' ), $this->advanced_settings_key , 'section_advanced' );
 		add_settings_field( 'field_widget_recent_post_option', 'Widget Recent Post', array( &$this, 'field_widget_recent_post_option' ), $this->advanced_settings_key , 'section_advanced' );
 		add_settings_field( 'field_widget_categories_option', 'Widget Categories', array( &$this, 'field_widget_categories_option' ), $this->advanced_settings_key , 'section_advanced' );
-		add_settings_field( 'field_remove_category_permalink_option', 'Remove %category% permalink', array( &$this, 'field_remove_category_permalink_option' ), $this->advanced_settings_key , 'section_advanced' );		
 		
 	}
 	
 	function sanitize_subdomain_settings_callback($input) {
 		$new_settings = $this->advanced_settings;
-		if($input['remove_category_permalink'] == 1) {
+		if($input['remove_category_permalink'] ) {
 			if( stripos(get_option('permalink_structure'),'%category%') === false)
 				$input['remove_category_permalink'] =0;
 		}
@@ -191,7 +357,37 @@ class mcs_admin {
 	function section_subdomain() {
 		echo 'You can set the subdomain setting here';
 	}
-		
+
+
+	function field_subdomain_mode() {
+		echo '<Input type="radio" name="' .$this->advanced_settings_key . '[mode]" value="1"  ' . checked( 1, $this->advanced_settings['mode'] , false ) .'/><strong>ACTIVATE</strong>&nbsp;&nbsp;';
+		echo '<Input type="radio" name="' .$this->advanced_settings_key . '[mode]"  value="0" ' .  checked( 0, $this->advanced_settings['mode'] , false ) .' /> TESTING&nbsp;';
+		echo '<br><br><hr><label><em>
+			  Testing\'s Mode means This plugin only works if Admin (you) login OR when user visits subdomain,<br>
+			  your visitors will never see any changes on Main Domain, <br>so you can test this plugin without any worry<br><br>
+			  if everything work like you expected, check "ACTIVATE"<br>
+			  if not, just uninstalls it or better ask me <a target="_blank" href="https://wordpress.org/support/plugin/main-category-as-subdomain">here</a></em>
+			  </label><br><br>';
+	}
+
+	function field_subdomain_multicat() {
+		echo '<Input type="radio" name="' .$this->advanced_settings_key . '[multicat]" value="by_id"  ' . checked( 'by_id', $this->advanced_settings['multicat'] , false ) .'/>  1. Order by ID (Recommended)&nbsp;&nbsp;<br>';
+		echo '<Input type="radio" name="' .$this->advanced_settings_key . '[multicat]"  value="by_find" ' .  checked( 'by_find', $this->advanced_settings['multicat'] , false ) .' /> 2. Find Subdomain and update to single category&nbsp;';
+		echo '<br><br><hr><label><em>
+				1.  we will pick the first category order by an ID. <br><br>
+					pros : No duplicate content if you activate new subdomain so no need to update anything<br>
+					cons: First category maybe not subdomain, so even you have subdomain inside the post, <br>
+					because the first category isn\'t subdomain, then the post will never become subdomain<br><br>
+				2. 	Find Subdomain in categories, ignoring the first category <br><br>
+				    pros : if the post has subdomain, it will be converted to subdomain<br>
+					cons: To avoid changes  to another subdomain if you activate new one,<br>
+					the post have to be updated to single category<br><br>
+					
+					Don\'t worry, The updating to single category not working in "testing" mode
+				
+			  </em></label>';
+	}		
+	
 	function field_subdomain_option() {
 		echo '<Input type="radio" name="' .$this->advanced_settings_key . '[redirect]" value="1"  ' . checked( 1, $this->advanced_settings['redirect'] , false ) .'/> Yes&nbsp;&nbsp;';
 		echo '<Input type="radio" name="' .$this->advanced_settings_key . '[redirect]"  value="0" ' .  checked( 0, $this->advanced_settings['redirect'] , false ) .' /> No&nbsp;';
@@ -209,12 +405,12 @@ class mcs_admin {
 		echo '<Input type="radio" name="' .$this->advanced_settings_key . '[bloginfo]" value="1"  ' .  checked( 1, $this->advanced_settings['bloginfo'] , false ) .'/> Yes&nbsp;&nbsp;';
 		echo '<Input type="radio" name="' .$this->advanced_settings_key . '[bloginfo]"  value="0" ' .  checked( 0, $this->advanced_settings['bloginfo'] , false ) .' /> No';
 		echo "<br><br><label><em>Using Category Name &amp; Describtion To Replace Blog Name &amp; Describtion in Subdomain<br>
-			Don't forget to update your blog describtion (Usually it's empty) <a href='" . home_url() . "/wp-admin/edit-tags.php?taxonomy=category'> Edit </a></em></label><hr>";
+			Don't forget to update your category describtion (Usually it's empty) <a href='" . home_url() . "/wp-admin/edit-tags.php?taxonomy=category'> Edit </a></em></label><hr>";
 	}
 	
 	function field_subcategory_option() {
-		echo '<Input type="radio" name="' .$this->advanced_settings_key . '[child_categories]" value="main_categories_subdomains"  ' .  checked( 'main_categories_subdomains', $this->advanced_settings['child_categories'] , false ) .'/> Change to Categories in Subdomain&nbsp;&nbsp; ';
-		echo '<Input type="radio" name="' .$this->advanced_settings_key . '[child_categories]"  value="all_subdomain" ' .  checked( 'all_subdomain', $this->advanced_settings['child_categories'] , false ) .' /> Change All To Subdomain&nbsp;&nbsp;';
+		echo '<Input type="radio" name="' .$this->advanced_settings_key . '[child_categories]" value="main_categories_subdomains"  ' .  checked( 'main_categories_subdomains', $this->advanced_settings['child_categories'] , false ) .'/> Change to Categories in Subdomain&nbsp;&nbsp; <br>';
+		echo '<Input type="radio" name="' .$this->advanced_settings_key . '[child_categories]"  value="all_subdomain" ' .  checked( 'all_subdomain', $this->advanced_settings['child_categories'] , false ) .' /> Change All To Subdomain&nbsp;&nbsp;<br>';
 		echo '<Input type="radio" name="' .$this->advanced_settings_key . '[child_categories]"  value="none" ' .  checked( 'none', $this->advanced_settings['child_categories'] , false ) .' /> Original';		
 		echo '<br><br><label><em></em></label><hr>';
 	}
@@ -238,14 +434,26 @@ class mcs_admin {
 		echo '<br><br><label><em>Only Show Child Categories from Subdomain in "Categories Widget"</em></label><hr>';
 	}	
 	
-	function field_remove_category_permalink_option() {	
-		echo '<Input type="radio" name="' .$this->advanced_settings_key . '[remove_category_permalink]" value="1"  ' .  checked( 1, $this->advanced_settings['remove_category_permalink'] , false ) .'/> Yes&nbsp;&nbsp;';
-		echo '<Input type="radio" name="' .$this->advanced_settings_key . '[remove_category_permalink]"  value="0" ' .  checked( 0, $this->advanced_settings['remove_category_permalink'] , false ) .' />  No';
-		if ( stripos(get_option('permalink_structure'),'%category%') === false)
-			echo '<br><br><label><em>Your Permalink Structure doesn\'t has %category%, No need to do Anything here</em></label><hr>';
-		else
-			echo '<br><br><label><em>Your Permalink Structure has %category%, you can remove it in subdomain by check "yes"</em></label><hr>';
-	}		
+	function field_remove_category_permalink_option() {
+		if ( stripos(get_option('permalink_structure'),'%category%') !== false) {
+			echo '<Input type="radio" name="' .$this->advanced_settings_key . '[remove_category_permalink]" value="2"  ' .  checked( 2, $this->advanced_settings['remove_category_permalink'] , false ) .'/> Remove OR Change to Child Categories if exists &nbsp;&nbsp; <br>';	
+			echo '<Input type="radio" name="' .$this->advanced_settings_key . '[remove_category_permalink]" value="1"  ' .  checked( 1, $this->advanced_settings['remove_category_permalink'] , false ) .'/> Remove Completely &nbsp;&nbsp;<br>';
+			echo '<Input type="radio" name="' .$this->advanced_settings_key . '[remove_category_permalink]"  value="0" ' .  checked( 0, $this->advanced_settings['remove_category_permalink'] , false ) .' />  do nothing <hr>';
+		} else {
+			echo 'You don\'t have one, No need to do anything here<hr>';
+		}
+		
+	}
+
+	function field_single_category_url() {
+		echo '<Input type="radio" name="' .$this->advanced_settings_key . '[single_category_url]" value="1"  ' .  checked( 1, $this->advanced_settings['single_category_url'] , false ) .'/> Yes&nbsp;&nbsp;';	
+		echo '<Input type="radio" name="' .$this->advanced_settings_key . '[single_category_url]" value="0"  ' .  checked( 0, $this->advanced_settings['single_category_url'] , false ) .'/> No';	
+		echo '<br><br><hr><label><em>
+			Make url in subdomain only contain one single category, well something like this<br><br>
+			http://cat1.yourdomain.com/category/cat2/cat3/cat4 <br> to <br> http://cat1.yourdomain.com/category/cat4<br><br>			
+			http://cat1.yourdomain.com/cat2/cat3/cat4/this_is_my_posts.html <br> to <br> http://cat1.yourdomain.com/cat4/this_is_my_posts.html <br><br>
+			</em>  </label><br><br>';		
+	}
 	
 	
 	
@@ -253,16 +461,7 @@ class mcs_admin {
 	
 	
 	
-	/*
-	 * The following methods provide descriptions
-	 * for their respective sections, used as callbacks
-	 * with add_settings_section
-	 */
-	function section_general_desc() { echo '<ol>
-											<li>Don\'t Forget to  Set Up Wildcard (*) Subdomains in your Web Server <a href="/wp-admin/options-general.php?page=mcs_page_subdomain&tab=mcs_help"> HELP </a></li>
-											<li><strong style="color:red">REMEMBER: </strong>If Your post has two or more categories, we will pick the first category order by an ID.
-											<br>And the first category maybe not subdomain</li>
-											</ol>'; }
+
 	function section_advanced_desc() { }
 	
 	/*
@@ -271,7 +470,7 @@ class mcs_admin {
 	 * using the plugin_options_page method.
 	 */
 	function add_admin_menus() {
-		add_options_page( 'My Plugin Settings', 'Subdomain Settings', 'manage_options', $this->plugin_options_key, array( &$this, 'plugin_options_page' ) );
+		add_options_page( 'Subdomain Plugin Settings', 'Subdomain Settings', 'manage_options', $this->plugin_options_key, array( &$this, 'plugin_options_page' ) );
 	}
 	
 	/*
@@ -292,6 +491,10 @@ class mcs_admin {
 			
 <h1>Configuring Wildcard Subdomains</h1>
 This page contains some examples of how to configure wildcard subdomains in different circumstances. If you cannot determine how to set up wildcard subdomains on your particular web server, contact your webhost for directions.
+
+<span style="color:red;"> <br> Attention : Some Hosting need Several Hours To Fully works (Like Hosgator.com ) <br> if in one day wildcard subdomain doesn't load, please ask your hosting for assistance</span>
+
+
 </a><h2> <span class="mw-headline"> CPanel </span></h2>
 <p>Make a sub-domain named "*" (wildcard) at your CPanel (*.example.com). <strong>Make sure to point this at the same folder location where your wordpress folder is located</strong>.
 </p>
@@ -317,7 +520,7 @@ This page contains some examples of how to configure wildcard subdomains in diff
 	<li>Make sure to set the document root to match the document root of the addon domain. The document root can be found inside of your cPanel within the <em>Addon Domain</em> area.<span id="cke_bm_164E" style="display: none;">&nbsp;</span></li>
 </ol>
 
-<img src="http://lh6.googleusercontent.com/-BihrFLWyFZ8/U6zud30Wf8I/AAAAAAAAA2U/jsT0tkZbyhs/s726/wilcard-addon-domains.gif" />
+<img src="https://lh6.googleusercontent.com/-a-7HC1jEXKk/VSEMfy2PV4I/AAAAAAAAA48/c1i_1BtNoio/w726-h588-no/wilcard-addon-domains.gif" />
 
 <hr><p></p><p></p>
 <h2> <span class="mw-headline"> Plesk </span></h2>
@@ -366,6 +569,73 @@ Click "Admin Panel" (If you have no "admin panel" ask your host to do this.) -&g
 			echo '<a class="nav-tab ' . $active . '" href="?page=' . $this->plugin_options_key . '&tab=' . $tab_key . '">' . $tab_caption['title'] . '</a>';	
 		}
 		echo '</h2>';
+	}
+	
+	function Visit($url){
+	
+		if ( function_exists('curl_init') ) {
+			$agent = "Mozilla/4.0 (compatible; MSIE 5.01; Windows NT 5.0)";
+			$ch=curl_init();
+			curl_setopt ($ch, CURLOPT_URL,$url );
+			curl_setopt($ch, CURLOPT_USERAGENT, $agent);
+			curl_setopt ($ch, CURLOPT_RETURNTRANSFER, 1);
+			curl_setopt ($ch,CURLOPT_VERBOSE,false);
+			curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+			curl_setopt($ch,CURLOPT_SSL_VERIFYPEER, FALSE);
+			curl_setopt($ch,CURLOPT_SSLVERSION,3);
+			curl_setopt($ch,CURLOPT_SSL_VERIFYHOST, FALSE);
+			$page=curl_exec($ch);
+			//echo curl_error($ch);
+			$httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+			curl_close($ch);
+			if($httpcode>=200 && $httpcode<300) return true;
+			else return false;
+		}
+		
+		
+		return null;
+	}
+	
+	function generateRandomString($length = 10) {
+		$characters = 'abcdefghijklmnopqrstuvwxyz';
+		$charactersLength = strlen($characters);
+		$randomString = '';
+		for ($i = 0; $i < $length; $i++) {
+			$randomString .= $characters[rand(0, $charactersLength - 1)];
+		}
+		return $randomString;
+	}	
+	
+	
+	
+	
+	
+	static function upgrade() {
+	
+		$settings = get_option('mcs_subdomain_settings');
+		$selected_categories = get_option('mcs_categories');
+		
+		if( MCS_DB_VERSION == $settings['db_version'] ) return;
+		
+		if( $settings['db_version'] == 1 ) {
+			$old_selected_categories = $selected_categories;
+			$new_selected_categories = array();
+			foreach($old_selected_categories as $cat_id => $theme) {
+				if( ! empty($theme) )
+					$new_selected_categories[$cat_id] = array('theme' => $theme);
+				else
+					$new_selected_categories[$cat_id] = array();
+			
+			}
+			
+			$settings[ 'multicat' ]                 = 'by_id';
+			$settings[ 'mode' ]                     = 1; 
+			$settings[ 'single_category_url' ]	  	= 1;						
+			$settings[ 'db_version']                = 2;
+			
+			update_option( 'mcs_categories' , $new_selected_categories ); 
+			update_option( 'mcs_subdomain_settings' , $settings); 
+		}	
 	}
 }
 
