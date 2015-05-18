@@ -3,8 +3,8 @@ Contributors: dersax
 Donate link: 
 Tags: subdomain, subdomains , category ,categories
 Requires at least: 3.9.1
-Tested up to: 4.1.1
-Stable tag: 2.0
+Tested up to: 4.2.2
+Stable tag: 2.0.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -43,6 +43,12 @@ Features
 2. All Settings on subdomain
 
 == Changelog ==
+
+= 2.0.1 =
+
+* Bugs fixed:
+	* Fix Customize Subdomain can't be saved
+	* Tell Users About Sitemap XML Plugins Disaster
 
 = 2.0 =
 

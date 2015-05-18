@@ -3,7 +3,7 @@
   Plugin Name: Main Category As Subdomain
   Plugin URI: http://blogbintang.com
   Description: Change your categories as subdomains. Please Set up * (wild card) Subdomain in your host.
-  Version: 2.0
+  Version: 2.0.1
   Author: Bintang Taufik
   Author URI: http://blogbintang.com
   

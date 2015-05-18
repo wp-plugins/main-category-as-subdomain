@@ -223,11 +223,14 @@ class mcs_admin {
 				$multicategories_message = '<strong style="color:red">REMEMBER: </strong>If Your post has two or more categories, we will find the subdomain
 					<br>And update the post to single category';				
 			}
+			
+			$xml_sitemap_message = '<strong style="color:red">ATTENTION</strong> FOR Xml Sitemap plugin User, Check Your plugin support subdomain or not, <a href="/wp-admin/options-general.php?page=mcs_page_subdomain&tab=mcs_help#xmlsitemap"> Read Here </a></strong>';
 
 			
 			echo 	'<ol>				
 					<li>' . $wilcard_message . '</li>								
 					<li>' . $multicategories_message .'</li>
+					<li>' . $xml_sitemap_message .'</li>
 					</ol><hr>';
 			
 		}
@@ -284,7 +287,7 @@ class mcs_admin {
 	
 	//update
 	function field_subdomain_hidden($args ) {
-		$hidden_input = '<input type="hidden" name="' . $this->selected_categories_key .'[hidden_id]' . '" value="' . $args[0]  . '">';	
+		$hidden_input = '<input type="hidden" name="' . $this->selected_categories_key .'[hidden_id]' . '" value="' . $this->id_subdomain . '">';	
 		echo $hidden_input ;
 		
 	}		
@@ -531,13 +534,33 @@ This page contains some examples of how to configure wildcard subdomains in diff
 Click "User Panel" -&gt; DNS Management -&gt; add the following three entries using the three columns: <pre>* A xxx.xx.xx.xxx</pre> (Replace "xxx.xx.xx.xxx" with your website IP.) 
 Click "Admin Panel" (If you have no "admin panel" ask your host to do this.) -&gt; Custom Httpd -&gt; yourdomain.com -&gt; In the text input area, just paste and "save" precisely the following: <pre>ServerAlias *.|DOMAIN|</pre> (If you ever need to un-do a custom Httpd: return here, delete text from input area, save.)
 <ul><li> DirectAdmin.com: <a href="http://help.directadmin.com/item.php?id=127" class="external text" title="http://help.directadmin.com/item.php?id=127">Apache Wildcard Documentation</a>... DirectAdmin.com forum: <a href="http://www.directadmin.com/forum/showthread.php?p=195033" class="external text" title="http://www.directadmin.com/forum/showthread.php?p=195033">Wordpress wildcard subdomains</a>.
-</li></ul>			
-			
-			
-					
-			
-			
-			
+</li></ul>	
+
+						
+<h2 style="margin-top:120px"> <span class="mw-headline"> Xml Sitemap plugin's Problem </span></h2>	
+<a NAME="xmlsitemap"></a>		
+<p>There's bad news for you, in the recent updates, most all xml sitemap plugin don't support subdomains anymore
+<br>( <em> Actually, their purpose is to prevent link from external domain, unfortunately also has impact on  subdomain</em>)	
+<br>The worst is Nothing I can do on my side... :'(
+</p>				
+<p>
+Here's list xml plugins which Support subdomain :
+
+<ul>
+<ol><a href="https://wordpress.org/plugins/xml-sitemap-feed/">XML Sitemap & Google News feeds</a></ol>
+<ol>...</ol>
+<ul>
+
+If You know another xml plugin which supports subdomain, don't hestitate to contact me ASAP
+</p>			
+
+<p>Popular Plugins Don't support subdomain</p>
+<ul>
+<ol><a href="https://wordpress.org/plugins/xml-sitemaps/">XML Sitemaps</a></ol>
+<ol><a href="https://wordpress.org/plugins/wordpress-seo/">WordPress SEO by Yoast</a> (No need uninstall the plugin, just disable xml feature)</ol>
+</ul>
+
+<div style="margin-bottom:800px"></div>						
 			
 			
 			
