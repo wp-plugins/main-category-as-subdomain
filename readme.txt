@@ -35,7 +35,7 @@ Features
 
 == Frequently Asked Questions ==
 
-1. Don't have many questions, but if you have, please send to bintangtaufik@gmail.com
+None
 
 == Screenshots ==
 
