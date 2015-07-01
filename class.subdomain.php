@@ -161,22 +161,11 @@ class mcs_subdomain {
 			*/
 			
 			if( isset( $this->settings['theme']) ) { 
-				/*
-				Get Theme Object
-				Will be reused in filter later
-				*/
-				$theme = $this->settings['theme'];
-				if ( ! empty( $theme ) ) {
-					$my_theme = wp_get_theme( $theme);
-					if ( $my_theme->exists() )
-						$this->change_theme = $my_theme;	
-				}
-					
-				/**
-				* The Theme filter
-				*/			
-				add_filter( 'stylesheet', array( &$this, 'stylesheet') );
-				add_filter( 'template', array( &$this, 'template') );			
+				new mcs_change_theme($this->settings['theme']);
+			}
+			
+			if ( isset( $this->settings['nav_menu']) ) {
+				add_filter('theme_mod_nav_menu_locations',array( &$this, 'nav_menu') ,11,1);			
 			}
 				
 				
@@ -804,27 +793,14 @@ class mcs_subdomain {
 	public function non_redirect_canocial() {
 		return false;
 	}
+	
+	public function nav_menu( $args  ) {
+		if ( is_array( $this->settings['nav_menu'] ) )
+			return $this->settings['nav_menu'];
+			
+		return  $args;
+	}	
 
-    public function stylesheet( $theme ) {
-	
-		if ( $this->change_theme) {
-			return $this->change_theme->get_stylesheet() ;
-		}
-		
-		return $theme;
-    }
-	
-    public function template( $theme ) {
-	
-		if ( $this->change_theme ) {
-			/*
-			return parent theme if we are on child theme.
-			*/
-			return $this->change_theme->get_template() ;
-		}
-		
-		return $theme;
-    }	
 	
 }
 	

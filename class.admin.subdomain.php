@@ -39,6 +39,7 @@ class mcs_admin {
 		add_action( 'admin_notices', array( &$this, 'error_admin_notice') );
 		//echo plugin_basename(__FILE__);
 		add_filter( 'plugin_action_links_main-category-as-subdomain/main-category-as-subdomain.php',  array( &$this, 'my_plugin_action_links') );
+		new mcs_menus_location();		
 	
 	}
 	
@@ -80,7 +81,11 @@ class mcs_admin {
 	 * appends the setting to the tabs array of the object.
 	 */
 	function register_selected_categories() {
-		$this->plugin_settings_tabs[$this->selected_categories_key] = array('title'=>'Main Categories','button'=> 'Change To Subdomain');	
+		$button = 'Change To Subdomain';
+		if ( $this->id_subdomain) 
+			$button = 'Save';
+	
+		$this->plugin_settings_tabs[$this->selected_categories_key] = array('title'=>'Main Categories','button'=> $button);	
 		
 		register_setting( $this->selected_categories_key, $this->selected_categories_key ,array( &$this, 'sanitize_category_callback'));
 		

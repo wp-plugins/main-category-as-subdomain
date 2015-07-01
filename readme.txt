@@ -4,7 +4,7 @@ Donate link:
 Tags: subdomain, subdomains , category ,categories
 Requires at least: 3.9.1
 Tested up to: 4.2.2
-Stable tag: 2.0.1
+Stable tag: 2.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -43,6 +43,14 @@ None
 2. All Settings on subdomain
 
 == Changelog ==
+
+= 2.1 =
+
+* Bugs fixed:
+	* Minor Error in Save Button Text on Main Categories tab
+
+* New features:
+	* Added Menus Location For Each Subdomain
 
 = 2.0.1 =
 
